@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>مراقبة الكاميرا</title>
+<style>
+  :root{--bg:#0f1218;--card:#181d27;--line:#2a3140;--tx:#e8ecf3;--mut:#8b95a8;--ac:#3b82f6;--red:#ef4444;--grn:#22c55e}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,"Segoe UI",Tahoma,sans-serif;min-height:100vh}
+  .wrap{max-width:900px;margin:0 auto;padding:20px 16px}
+  h1{font-size:22px;margin:8px 0 18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+  button{font:inherit;color:#fff;background:var(--ac);border:0;border-radius:10px;padding:12px 18px;cursor:pointer}
+  button.sec{background:#2a3140}
+  button.red{background:var(--red)}
+  button:disabled{opacity:.5}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .big{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .big button{padding:28px 12px;font-size:18px}
+  input[type=text]{font:inherit;font-size:22px;letter-spacing:4px;text-align:center;background:#0f1218;color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%;direction:ltr}
+  video{width:100%;background:#000;border-radius:12px;max-height:70vh}
+  .code{font-size:40px;letter-spacing:8px;font-weight:700;direction:ltr;text-align:center;background:#0f1218;border-radius:12px;padding:14px;user-select:all}
+  .mut{color:var(--mut);font-size:14px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--mut);margin-inline-end:6px}
+  .dot.on{background:var(--grn)} .dot.alert{background:var(--red)}
+  .alertbox{border-color:var(--red)!important;box-shadow:0 0 0 3px #ef444455}
+  .gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+  .gal figure{margin:0;background:#0f1218;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+  .gal img{width:100%;display:block}
+  .gal figcaption{font-size:12px;padding:6px 8px;color:var(--mut);display:flex;justify-content:space-between;align-items:center}
+  .gal a{color:var(--ac);text-decoration:none}
+  label{display:block;margin:8px 0 4px}
+  input[type=range]{width:100%}
+  select{font:inherit;background:#0f1218;color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:10px}
+  #dim{position:fixed;inset:0;background:#000;z-index:50;display:none;align-items:center;justify-content:center;color:#333;font-size:16px;text-align:center;padding:20px}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📹 مراقبة الكاميرا</h1>
+
+  <!-- اختيار الوضع -->
+  <div id="home" class="card">
+    <p>افتح هذي الصفحة على الجهازين، وكل جهاز يختار دوره:</p>
+    <div class="big">
+      <button id="btnCam">📱 هذا الجهاز هو الكاميرا<br><small>(الآيباد)</small></button>
+      <button id="btnView" class="sec">💻 هذا الجهاز للمشاهدة<br><small>(اللابتوب)</small></button>
+    </div>
+    <p class="mut">الفيديو يروح مباشرة من جهاز لجهاز (P2P)، وما ينحفظ بأي سيرفر.</p>
+  </div>
+
+  <!-- وضع الكاميرا -->
+  <div id="camView" class="hidden">
+    <div class="card">
+      <div class="mut">رمز الاتصال — اكتبه على اللابتوب:</div>
+      <div class="code" id="camCode">------</div>
+      <p class="mut"><span class="dot" id="camDot"></span><span id="camStatus">جاري التحضير...</span></p>
+    </div>
+    <div class="card">
+      <video id="camVideo" autoplay playsinline muted></video>
+      <div class="row" style="margin-top:12px">
+        <select id="facing"><option value="environment">الكاميرا الخلفية</option><option value="user">الكاميرا الأمامية</option></select>
+        <button id="btnDim" class="sec">🌑 إطفاء الشاشة (توفير بطارية)</button>
+      </div>
+      <label>حساسية الحركة: <span id="sensVal"></span></label>
+      <input type="range" id="sens" min="1" max="10" value="6">
+      <label><input type="checkbox" id="motionOn" checked> كشف الحركة شغّال</label>
+      <p class="mut">خلّي الآيباد موصول بالشاحن وخلّي الصفحة مفتوحة. لا تقفل الشاشة بالزر.</p>
+    </div>
+  </div>
+  <div id="dim" onclick="this.style.display='none'">الكاميرا شغالة…<br>المس الشاشة للرجوع</div>
+
+  <!-- وضع المشاهدة -->
+  <div id="viewView" class="hidden">
+    <div class="card" id="connectCard">
+      <label>اكتب الرمز الظاهر على الآيباد:</label>
+      <input type="text" id="codeIn" maxlength="8" placeholder="ABCD2345" autocapitalize="characters">
+      <div class="row" style="margin-top:12px"><button id="btnConnect">اتصال</button></div>
+      <p class="mut"><span class="dot" id="vDot"></span><span id="vStatus">غير متصل</span></p>
+    </div>
+    <div class="card" id="videoCard">
+      <video id="remote" autoplay playsinline muted></video>
+      <div class="row" style="margin-top:12px">
+        <button id="btnFull" class="sec">⛶ ملء الشاشة</button>
+        <button id="btnSound" class="sec">🔔 الصوت: شغّال</button>
+        <button id="btnNotif" class="sec">إشعارات المتصفح</button>
+        <button id="btnShot" class="sec">📸 لقطة</button>
+      </div>
+      <label>حساسية الحركة: <span id="vSensVal"></span></label>
+      <input type="range" id="vSens" min="1" max="10" value="6">
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between"><b>سجل الحركة</b><button id="btnClear" class="sec">مسح</button></div>
+      <p class="mut" id="noMotion">ما اكتشفنا أي حركة لحد الآن.</p>
+      <div class="gal" id="gal"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const PREFIX = "icam-monitor-v1-";
+const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const genCode = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), b => CHARS[b % CHARS.length]).join("");
+
+$("btnCam").onclick = () => { $("home").classList.add("hidden"); $("camView").classList.remove("hidden"); startCamera(); };
+$("btnView").onclick = () => { $("home").classList.add("hidden"); $("viewView").classList.remove("hidden"); initViewer(); };
+
+/* ================= الكاميرا (الآيباد) ================= */
+let stream, peer, conns = [], prev = null, lastAlert = 0, wakeLock;
+const cvs = document.createElement("canvas"); cvs.width = 64; cvs.height = 48;
+const ctx = cvs.getContext("2d", { willReadFrequently: true });
+
+async function getStream() {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: $("facing").value, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false
+  });
+  $("camVideo").srcObject = stream;
+  prev = null;
+  // لو في مشاهدين متصلين، أرسل لهم الستريم الجديد
+  conns.forEach(c => c.open && callViewer(c));
+}
+
+async function startCamera() {
+  if (!navigator.mediaDevices || !window.isSecureContext) {
+    $("camStatus").textContent = "⚠️ لازم تفتح الصفحة عبر رابط HTTPS حتى تشتغل الكاميرا.";
+    return;
+  }
+  try { await getStream(); } catch (e) { $("camStatus").textContent = "ما قدرت أشغّل الكاميرا: " + e.message; return; }
+  try { wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
+  document.addEventListener("visibilitychange", async () => {
+    if (document.visibilityState === "visible") { try { wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {} }
+  });
+  const code = genCode(); $("camCode").textContent = code;
+  peer = new Peer(PREFIX + code);
+  peer.on("open", () => { $("camStatus").textContent = "جاهز — بانتظار اللابتوب"; });
+  peer.on("error", e => { $("camStatus").textContent = "خطأ بالاتصال: " + e.type; });
+  peer.on("connection", conn => {
+    conns.push(conn);
+    conn.on("open", () => {
+      callViewer(conn);
+      conn.send({ type: "hello", sens: +$("sens").value });
+      updateCamStatus();
+    });
+    conn.on("data", d => {
+      if (d.type === "sens") { $("sens").value = d.value; updSens(); }
+      if (d.type === "snap") conn.send({ type: "snap", img: snapshot(), t: Date.now(), manual: true });
+    });
+    conn.on("close", () => { conns = conns.filter(c => c !== conn); updateCamStatus(); });
+  });
+  $("facing").onchange = () => getStream().catch(e => alert(e.message));
+  $("sens").oninput = updSens; updSens();
+  $("btnDim").onclick = () => { $("dim").style.display = "flex"; };
+  setInterval(detectMotion, 300);
+}
+function callViewer(conn) { peer.call(conn.peer, stream); }
+function updateCamStatus() {
+  const n = conns.filter(c => c.open).length;
+  $("camDot").className = "dot" + (n ? " on" : "");
+  $("camStatus").textContent = n ? "متصل — يتم البث" : "جاهز — بانتظار اللابتوب";
+}
+function updSens() { $("sensVal").textContent = $("sens").value + " / 10"; }
+
+function snapshot() {
+  const v = $("camVideo"); const c = document.createElement("canvas");
+  const w = 640, h = Math.round(w * (v.videoHeight || 480) / (v.videoWidth || 640));
+  c.width = w; c.height = h; c.getContext("2d").drawImage(v, 0, 0, w, h);
+  return c.toDataURL("image/jpeg", 0.6);
+}
+
+function detectMotion() {
+  const v = $("camVideo");
+  if (!$("motionOn").checked || v.readyState < 2) return;
+  ctx.drawImage(v, 0, 0, 64, 48);
+  const d = ctx.getImageData(0, 0, 64, 48).data;
+  const gray = new Uint8Array(64 * 48);
+  for (let i = 0, j = 0; i < d.length; i += 4, j++) gray[j] = (d[i] * 3 + d[i + 1] * 6 + d[i + 2]) / 10;
+  if (prev) {
+    let changed = 0;
+    for (let i = 0; i < gray.length; i++) if (Math.abs(gray[i] - prev[i]) > 28) changed++;
+    const ratio = changed / gray.length;
+    const s = +$("sens").value;                    // 1 = أقل حساسية، 10 = أعلى
+    const threshold = 0.10 - s * 0.009;             // 0.091 … 0.01
+    const now = Date.now();
+    if (ratio > threshold && now - lastAlert > 4000) {
+      lastAlert = now;
+      const img = snapshot();
+      conns.forEach(c => c.open && c.send({ type: "motion", img, t: now, level: Math.round(ratio * 100) }));
+      $("camDot").className = "dot alert"; setTimeout(updateCamStatus, 1500);
+    }
+  }
+  prev = gray;
+}
+
+/* ================= المشاهدة (اللابتوب) ================= */
+let vpeer, vconn, soundOn = true, audioCtx, retryTimer, currentCode;
+
+function initViewer() {
+  $("videoCard").classList.add("hidden");
+  const saved = localStorage.getItem("camcode"); if (saved) $("codeIn").value = saved;
+  $("btnConnect").onclick = connect;
+  $("codeIn").onkeydown = e => { if (e.key === "Enter") connect(); };
+  $("btnFull").onclick = () => $("remote").requestFullscreen && $("remote").requestFullscreen();
+  $("btnSound").onclick = () => { soundOn = !soundOn; $("btnSound").textContent = "🔔 الصوت: " + (soundOn ? "شغّال" : "مطفي"); };
+  $("btnNotif").onclick = () => Notification.requestPermission().then(p => $("btnNotif").textContent = p === "granted" ? "✅ الإشعارات مفعّلة" : "الإشعارات مرفوضة");
+  $("btnShot").onclick = () => vconn && vconn.open && vconn.send({ type: "snap" });
+  $("vSens").oninput = () => { $("vSensVal").textContent = $("vSens").value + " / 10"; vconn && vconn.open && vconn.send({ type: "sens", value: +$("vSens").value }); };
+  $("vSensVal").textContent = "6 / 10";
+  $("btnClear").onclick = () => { $("gal").innerHTML = ""; $("noMotion").classList.remove("hidden"); };
+}
+
+function setV(text, cls) { $("vStatus").textContent = text; $("vDot").className = "dot " + (cls || ""); }
+
+function connect() {
+  const code = $("codeIn").value.trim().toUpperCase();
+  if (code.length < 8) return setV("الرمز لازم 8 خانات");
+  currentCode = code; localStorage.setItem("camcode", code);
+  if (vpeer) vpeer.destroy();
+  setV("جاري الاتصال...");
+  vpeer = new Peer();
+  vpeer.on("open", () => openConn());
+  vpeer.on("error", e => { setV(e.type === "peer-unavailable" ? "ما لقيت الكاميرا — تأكد من الرمز وأن الآيباد شغّال" : "خطأ: " + e.type); scheduleRetry(); });
+  vpeer.on("call", call => {
+    call.answer();
+    call.on("stream", s => {
+      $("remote").srcObject = s;
+      $("videoCard").classList.remove("hidden");
+      setV("متصل — مشاهدة مباشرة", "on");
+    });
+    call.on("close", () => { setV("انقطع البث — إعادة محاولة...", ""); scheduleRetry(); });
+  });
+  vpeer.on("disconnected", () => { try { vpeer.reconnect(); } catch (e) {} });
+}
+function openConn() {
+  vconn = vpeer.connect(PREFIX + currentCode, { reliable: true });
+  vconn.on("open", () => vconn.send({ type: "sens", value: +$("vSens").value }));
+  vconn.on("data", onData);
+  vconn.on("close", () => { setV("انقطع الاتصال — إعادة محاولة...", ""); scheduleRetry(); });
+}
+function scheduleRetry() {
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(() => { if (currentCode) connect(); }, 5000);
+}
+
+function onData(d) {
+  if (d.type === "hello") { $("vSens").value = d.sens; $("vSensVal").textContent = d.sens + " / 10"; }
+  if (d.type === "motion" || d.type === "snap") addShot(d);
+  if (d.type === "motion") alertMotion(d);
+}
+function addShot(d) {
+  $("noMotion").classList.add("hidden");
+  const time = new Date(d.t).toLocaleTimeString("ar-IQ");
+  const date = new Date(d.t).toLocaleDateString("en-CA");
+  const fig = document.createElement("figure");
+  fig.innerHTML = `<img src="${d.img}"><figcaption><span>${d.manual ? "📸" : "🚨"} ${time}</span><a download="cam-${date}-${time.replace(/[:\s]/g, "-")}.jpg" href="${d.img}">حفظ</a></figcaption>`;
+  $("gal").prepend(fig);
+}
+function alertMotion(d) {
+  const c = $("videoCard"); c.classList.add("alertbox"); setTimeout(() => c.classList.remove("alertbox"), 2500);
+  const oldTitle = "مراقبة الكاميرا"; document.title = "🚨 حركة!"; setTimeout(() => document.title = oldTitle, 4000);
+  if (soundOn) beep();
+  if ("Notification" in window && Notification.permission === "granted") new Notification("🚨 تم كشف حركة", { body: new Date(d.t).toLocaleTimeString("ar-IQ"), icon: d.img });
+}
+function beep() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.25].forEach(t => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.frequency.value = 880; o.connect(g); g.connect(audioCtx.destination);
+      g.gain.setValueAtTime(0.2, audioCtx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + t + 0.2);
+      o.start(audioCtx.currentTime + t); o.stop(audioCtx.currentTime + t + 0.2);
+    });
+  } catch (e) {}
+}
+</script>
+</body>
+</html>
